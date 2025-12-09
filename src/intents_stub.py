@@ -1,60 +1,76 @@
-"""
-Independent intents engine with in-memory tasks list.
-Run: python -m src.intents_stub
-"""
+# src/intents_stub.py
+from __future__ import annotations
 
-_tasks = []  # in-memory list so this module runs without storage
+from typing import Any, Dict, List, Optional, Tuple
 
-def detect_intent(user_input: str) -> tuple[str, dict]:
-    s = (user_input or "").strip().lower()
-    if s in ("help", "h", "?"):
+# ---- Intent detection ----
+
+def detect_intent(user_input: str) -> Tuple[str, Dict[str, str]]:
+    """
+    Return (intent, slots). Minimal rules:
+      - "help" -> HELP
+      - "hello"/"hi" -> GREET
+      - "echo ..." -> ECHO with text slot
+      - "ai: ..." or "explain ..." or "ask ..." -> ASK_AI with prompt slot
+      - otherwise -> UNKNOWN
+    """
+    s = (user_input or "").strip()
+    low = s.lower()
+
+    if low in {"help", "?", "h"}:
         return "HELP", {}
-    for kw in ("add ", "create "):
-        if s.startswith(kw):
-            return "CREATE", {"task": user_input[len(kw):].strip()}
-    if s in ("list", "show", "ls"):
-        return "LIST", {}
-    for kw in ("remove ", "delete "):
-        if s.startswith(kw):
-            return "DELETE", {"task": user_input[len(kw):].strip()}
+
+    if low.startswith(("hello", "hi")):
+        return "GREET", {}
+
+    if low.startswith("echo "):
+        return "ECHO", {"text": s[5:].strip()}
+
+    # AI-backed intent: three friendly triggers
+    for trigger in ("ai:", "explain ", "ask "):
+        if low.startswith(trigger):
+            # keep the original user text after the trigger as the prompt
+            prompt = s[len(trigger):].strip()
+            return "ASK_AI", {"prompt": prompt}
+
     return "UNKNOWN", {}
 
-def handle_intent(intent: str, slots: dict) -> str:
+# ---- Intent handling ----
+
+def handle_intent(
+    intent: str,
+    slots: Dict[str, str],
+    llm: Optional[callable] = None,
+    history: Optional[List[tuple[str, str]]] = None,
+) -> str:
+    """
+    Basic responses. If intent == ASK_AI and llm is provided, call it.
+    """
     if intent == "HELP":
-        return "Try: 'add buy milk', 'list', 'remove buy milk', or 'quit'."
-    if intent == "CREATE":
-        name = (slots.get("task") or "").strip()
-        if not name:
-            return "Please include a task name. Example: add buy milk"
-        _tasks.append(name)
-        return f"Added: {name}"
-    if intent == "LIST":
-        if not _tasks:
-            return "No tasks yet."
-        lines = [f"Your tasks ({len(_tasks)}):"]
-        for i, t in enumerate(_tasks, 1):
-            lines.append(f"  {i}. {t}")
-        return "\n".join(lines)
-    if intent == "DELETE":
-        name = (slots.get("task") or "").strip()
-        if not name:
-            return "Please include a task to remove. Example: remove buy milk"
+        return ("Try:\n"
+                "  • hello\n"
+                "  • echo your text here\n"
+                "  • ai: Explain Pomodoro in one sentence.\n"
+                "  • explain how to do a plank\n"
+                "  • ask what is JSON?\n"
+                "Type 'quit' to exit.")
+
+    if intent == "GREET":
+        return "Hello! Ask me anything, or type 'help' for examples."
+
+    if intent == "ECHO":
+        text = slots.get("text", "")
+        return text or "(nothing to echo)"
+
+    if intent == "ASK_AI":
+        prompt = slots.get("prompt", "").strip() or "Answer briefly."
+        if llm is None:
+            return "(AI unavailable) Provide a provider or run with --provider mock."
         try:
-            _tasks.remove(name)
-            return f"Removed: {name}"
-        except ValueError:
-            return f"Task not found: {name}"
-    return "I did not understand. Type 'help'."
+            answer = llm(prompt)
+            return answer
+        except Exception as e:
+            # Friendly failure that proves resilience
+            return f"(LLM unavailable: {e}) Try again later or switch to --provider mock."
 
-def _demo_loop():
-    print("Intents Stub (in-memory) — type 'help' or 'quit'")
-    while True:
-        text = input("> ")
-        if text.strip().lower() in ("quit", "exit"):
-            print("Goodbye.")
-            break
-        intent, slots = detect_intent(text)
-        print(handle_intent(intent, slots))
-
-if __name__ == "__main__":
-    _demo_loop()
+    return "I didn’t understand that. Type 'help' for examples."
