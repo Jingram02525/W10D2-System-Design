@@ -1,0 +1,52 @@
+# --- Python bytecode & build ---
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+build/
+dist/
+
+# --- Virtual environments ---
+.venv
+venv/
+env/
+
+# --- Env & secrets ---
+.env
+.env.*
+*.secret
+secrets.json
+
+# --- Local data/cache (safe to regenerate) ---
+cache/
+*.cache
+*.log
+
+# --- Test & coverage ---
+.coverage
+htmlcov/
+pytest_cache/
+.tox/
+.nox/
+
+# --- Linters & tooling ---
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.dmypy.json
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- OS/Editor junk ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Replit/Codespaces ---
+.replit
+*.code-workspace
+.python-version
